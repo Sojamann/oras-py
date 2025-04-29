@@ -49,6 +49,7 @@ class Registry:
         hostname: Optional[str] = None,
         insecure: bool = False,
         tls_verify: bool = True,
+        session: Optional[requests.Session] = None,
         auth_backend: str = "token",
     ):
         """
@@ -58,16 +59,20 @@ class Registry:
 
         :param hostname: the hostname of the registry to ping
         :type hostname: str
-        :param registry: if provided, use this custom provider instead of default
-        :type registry: oras.provider.Registry or None
         :param insecure: use http instead of https
         :type insecure: bool
+        :param tls_verify: perform tls verification
+        :type tls_verify: bool
+        :param session: use this initialized session over an internal one
+        :type session: requests.Session
+        :param auth_backend: the name of the registered auth backend to use
+        :type auth_backend: str
         """
         self.hostname: Optional[str] = hostname
         self.headers: dict = {}
-        self.session: requests.Session = requests.Session()
+        self.session: requests.Session = session or requests.Session()
+        self.session.verify = tls_verify
         self.prefix: str = "http" if insecure else "https"
-        self._tls_verify = tls_verify
 
         if not tls_verify:
             requests.packages.urllib3.disable_warnings()  # type: ignore
@@ -78,9 +83,7 @@ class Registry:
         self.session.cookies.set_policy(DefaultCookiePolicy(allowed_domains=[]))
 
         # Get custom backend, pass on session to share
-        self.auth = oras.auth.get_auth_backend(
-            auth_backend, self.session, insecure, tls_verify=tls_verify
-        )
+        self.auth = oras.auth.get_auth_backend(auth_backend, self.session, insecure)
 
     def __repr__(self) -> str:
         return str(self)
@@ -998,7 +1001,6 @@ class Registry:
             json=json,
             headers=headers,
             stream=stream,
-            verify=self._tls_verify,
         )
 
         # A 401 response is a request for authentication, 404 is not found
@@ -1016,7 +1018,6 @@ class Registry:
             json=json,
             headers=headers,
             stream=stream,
-            verify=self._tls_verify,
         )
 
         # One retry if 403 denied (need new token?)
@@ -1031,7 +1032,6 @@ class Registry:
                 json=json,
                 headers=headers,
                 stream=stream,
-                verify=self._tls_verify,
             )
 
         return response

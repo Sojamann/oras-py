@@ -15,7 +15,7 @@ class AuthenticationException(Exception):
 
 
 def get_auth_backend(
-    name="token", session=None, insecure=False, tls_verify=True, **kwargs
+    name="token", session=None, insecure=False, **kwargs
 ):
     backend = auth_backends.get(name)
     if not backend:
@@ -23,5 +23,4 @@ def get_auth_backend(
     backend = backend(**kwargs)
     backend.session = session or requests.Session()
     backend.prefix = "http" if insecure else "https"
-    backend._tls_verify = tls_verify
     return backend
